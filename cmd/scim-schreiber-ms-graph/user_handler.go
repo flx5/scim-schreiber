@@ -8,11 +8,11 @@ import (
 
 	"github.com/elimity-com/scim"
 	scimerrors "github.com/elimity-com/scim/errors"
-	"github.com/elimity-com/scim/filter"
 	"github.com/elimity-com/scim/optional"
+
 	"github.com/josegomezr/scim-schreiber-ldap/internal/casting"
+	"github.com/josegomezr/scim-schreiber-ldap/internal/model"
 	"github.com/josegomezr/scim-schreiber-ldap/internal/msgraph"
-	scim_filter_parser "github.com/scim2/filter-parser/v2"
 )
 
 type UserHandler struct {
@@ -64,23 +64,6 @@ func (h UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 	return msUserToUserResource(msUser), nil
 }
 
-func principalFromFilter(filterValidator *filter.Validator) (string, error) {
-	if filterValidator == nil {
-		return "", nil
-	}
-	f, ok := filterValidator.GetFilter().(*scim_filter_parser.AttributeExpression)
-	if !ok {
-		return "", fmt.Errorf("only single expressions are supported")
-	}
-	if f.Operator != "eq" {
-		return "", fmt.Errorf("only operator 'eq' is supported in filters")
-	}
-	if f.AttributePath.AttributeName != "userName" {
-		return "", fmt.Errorf("only 'userName' is supported in filters")
-	}
-	return f.CompareValue.(string), nil
-}
-
 func msUserToUserResource(entry *msgraph.User) scim.Resource {
 	return scim.Resource{
 		ID:         entry.Id,
@@ -113,7 +96,7 @@ func resourceToMsUser(resourceAttrs map[string]interface{}) *msgraph.User {
 
 func (h UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
 	slog.Info("GET /v2/Users", "params", params)
-	principal, err := principalFromFilter(params.FilterValidator)
+	principal, err := model.PrincipalFromFilter(params.FilterValidator)
 	if err != nil {
 		return scim.Page{}, err
 	}
